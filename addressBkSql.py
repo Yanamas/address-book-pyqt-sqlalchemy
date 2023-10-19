@@ -2,7 +2,6 @@ import PyQt5.QtWidgets as qtw
 import PyQt5.QtGui as qtg
 
 from addressBkSqlConn import *
-from addressBkQueries import *
 
 
 class MainWindow(qtw.QWidget):
@@ -22,52 +21,63 @@ class MainWindow(qtw.QWidget):
 
         # Create entry boxes
         self.fname_entry = qtw.QLineEdit(self)
-        lname_entry = qtw.QLineEdit(self)
-        email_entry = qtw.QLineEdit(self)
-        phone_entry = qtw.QLineEdit(self)
+        self.lname_entry = qtw.QLineEdit(self)
+        self.email_entry = qtw.QLineEdit(self)
+        self.phone_entry = qtw.QLineEdit(self)
 
-        entries_list = [self.fname_entry, lname_entry, email_entry, phone_entry]
+        self.entries_list = [self.fname_entry, self.lname_entry, self.email_entry, self.phone_entry]
+
+        # Create a combobox for contact categories
+        self.category_combobox = qtw.QComboBox()
+        self.populate_category_combobox()  # Populate the combobox with categories from the database
 
         # Create btn with function calls outside
-        button = qtw.QPushButton("Second button")
-        button.setCheckable(True)
-        button.clicked.connect(self.check_for_db)
-        button.clicked.connect(self.the_button_was_toggled)
+        button = qtw.QPushButton("Add")
+        button.clicked.connect(self.add_pressed)
 
         # Put everything on screen
         # Add rows to app
         form_layout.addRow("First name", self.fname_entry)
-        form_layout.addRow("Last name", lname_entry)
-        form_layout.addRow("Email", email_entry)
-        form_layout.addRow("Phone number", phone_entry)
-        form_layout.addRow(qtw.QPushButton("Lambda btn",
-                                    clicked = lambda: press_it()))
+        form_layout.addRow("Last name", self.lname_entry)
+        form_layout.addRow("Email", self.email_entry)
+        form_layout.addRow("Phone number", self.phone_entry)
+        form_layout.addRow("Category", self.category_combobox)
         form_layout.addRow(button)
         form_layout.addRow(self.label_2)
 
         # show the app
         self.show()
 
-        def press_it():
-            p = Contact(self.fname_entry.text(), lname_entry.text(), email_entry.text(), phone_entry.text())
-            existing_person = session.query(Contact).filter_by(first_name=p.first_name, last_name=p.last_name).first()
-            if existing_person:
-                self.label_2.setText(f"'{p.first_name} {p.last_name}' already exists in Address Book.")
-            else:
-                session.add(p)
-                session.commit()
-                self.label_2.setText(f"{p.first_name} {p.last_name} saved to Db!")
-                # Clear the entry box
-                for e in entries_list:
-                    e.setText("")
 
-    def check_for_db(self):
-        self.label_2.setText(f"{self.fname_entry.text()} - it worked!")
-        self.fname_entry.setText("")
-        print("Clicked!")
+    def add_pressed(self):
+        p = Contact(self.fname_entry.text(), self.lname_entry.text(), self.email_entry.text(), self.phone_entry.text())
+        person_exists = session.query(Contact).filter_by(first_name=p.first_name, last_name=p.last_name).first()
+        if person_exists:
+            self.label_2.setText(f"'{p.first_name} {p.last_name}' already exists in Address Book.")
+        else:
+            session.add(p)
+            selected_category_name = self.category_combobox.currentText()
+            category = session.query(Category).filter_by(cat_name=selected_category_name).first()
+            if category:
+                self.add_category(p.id, category.id)
+            session.commit()
+            self.label_2.setText(f"{p.first_name} {p.last_name} saved to Db!")
+            # Clear the entry box
+            for e in self.entries_list:
+                e.setText("")
 
-    def the_button_was_toggled(self, checked):
-        print("Checked?", checked)
+
+    def add_category(self, contact_id, category_id):
+        contact_category = ContactCategory(contact_id=contact_id, category_id=category_id)
+        session.add(contact_category)
+
+
+    def populate_category_combobox(self):
+        # Query the database to get category names using SQLAlchemy
+        categories = session.query(Category).all()
+        category_names = [category.cat_name for category in categories]
+        self.category_combobox.addItems(category_names)
+
 
         
 
